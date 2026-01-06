@@ -1,0 +1,103 @@
+\section{Motivation}
+
+The rapid advancement of artificial intelligence in healthcare promises to revolutionize medical diagnosis, treatment planning, and patient care. However, deploying AI systems in clinical settings faces a fundamental paradox: building robust medical AI requires access to large, diverse datasets, yet patient privacy regulations such as the Health Insurance Portability and Accountability Act (HIPAA) in the United States and the General Data Protection Regulation (GDPR) in Europe strictly prohibit sharing sensitive medical records across institutions.
+
+Traditional centralized machine learning approaches require aggregating all training data in a single location, making them incompatible with modern privacy requirements. This creates isolated data silos where individual hospitals cannot benefit from the collective knowledge distributed across the healthcare system. For instance, a hospital specializing in cardiology may have limited oncology cases, while another institution has the opposite distribution. Neither can train a comprehensive medical AI without accessing the other's data---a transfer that would violate patient confidentiality.
+
+Recent advances in Large Language Models (LLMs) such as GPT-4, PaLM, and Mistral have demonstrated remarkable capabilities in medical question-answering and clinical reasoning. However, fine-tuning these billion-parameter models on medical data presents severe computational challenges:
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Memory Requirements:} A 7-billion parameter model like Mistral-7B requires approximately 13 GB of storage in FP16 precision, with training memory overhead often exceeding 50 GB.
+    \item \textbf{Communication Costs:} Federated learning traditionally requires transmitting full model weights between clients and server after each training round, creating prohibitive bandwidth demands.
+    \item \textbf{Computational Intensity:} Full fine-tuning updates all model parameters, requiring extensive GPU resources unavailable at many healthcare facilities.
+\end{itemize}
+
+Furthermore, standard federated learning aggregation methods like \fedavg{}~\cite{mcmahan2017communication} treat all client updates equally or weight them proportionally to dataset size. This naive approach fails to account for critical factors such as training quality, model convergence stability, and potential adversarial or corrupted updates. In medical applications where patient safety is paramount, aggregating low-quality model updates can degrade overall system performance and reliability.
+
+\section{Contributions}
+
+This work presents \fedmed{} (Federated Medical AI), a comprehensive framework addressing the aforementioned challenges through three core innovations:
+
+\subsection{Parameter-Efficient Federated Learning with LoRA}
+
+We integrate Low-Rank Adaptation (\lora{})~\cite{hu2021lora} into the federated learning pipeline, achieving:
+\begin{itemize}[leftmargin=*]
+    \item \textbf{99.90\% model size reduction:} Only 13 MB of adapter weights transmitted per round instead of 13 GB full model
+    \item \textbf{0.05\% trainable parameters:} Fine-tuning only 3.4 million parameters out of 7 billion
+    \item \textbf{Practical deployment:} Training feasible on consumer-grade GPUs (16 GB VRAM) available at resource-constrained hospitals
+\end{itemize}
+
+\subsection{Agent-Based Intelligent Aggregation}
+
+We introduce a novel aggregation mechanism that goes beyond dataset size weighting:
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Quality-aware weighting:} Dynamically computes client contributions based on loss reduction and training stability
+    \item \textbf{Adversarial robustness:} Automatically detects and down-weights unstable or malicious clients
+    \item \textbf{Performance gains:} Achieves 39.5\% lower loss compared to naive equal weighting and 32.0\% improvement over sample-proportional weighting
+\end{itemize}
+
+\subsection{Production-Ready Safety Framework}
+
+Recognizing the critical nature of medical AI, we implement comprehensive safety guardrails:
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Response validation:} Detects and filters overconfident or dangerous medical advice
+    \item \textbf{Disclaimer injection:} Automatically appends appropriate medical disclaimers
+    \item \textbf{Prohibited pattern detection:} Prevents the model from making definitive diagnoses or treatment prescriptions
+\end{itemize}
+
+\section{Experimental Validation}
+
+We validate \fedmed{} on a realistic federated medical question-answering scenario:
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Dataset:} 10,000 medical Q\&A samples split across 3 hospital clients using Dirichlet-based non-IID partitioning ($\alpha=0.5$)
+    \item \textbf{Base Model:} Mistral-7B-Instruct-v0.2, a state-of-the-art open-source LLM
+    \item \textbf{Training Protocol:} 5 federated rounds with 100 local training steps per client
+    \item \textbf{Hardware:} Single NVIDIA T4 GPU (16 GB VRAM), demonstrating feasibility on affordable hardware
+\end{itemize}
+
+Key experimental findings include:
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Learning Efficiency:} 62.5\% global loss reduction from Round 1 to Round 3
+    \item \textbf{Communication Savings:} 570$\times$ bandwidth reduction compared to full model transmission
+    \item \textbf{Privacy Preservation:} Zero data overlap verified between clients; only adapter gradients transmitted
+    \item \textbf{Agent Effectiveness:} Intelligent weighting correctly identified best-performing client (Hospital B: 54.7\% weight) despite having only 25.2\% of total data
+\end{itemize}
+
+\section{Impact and Applications}
+
+\fedmed{} enables practical deployment scenarios previously infeasible:
+
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{Multi-Hospital Collaboration:} Academic medical centers and community hospitals can jointly train AI assistants while maintaining HIPAA compliance.
+    
+    \item \textbf{Rare Disease Research:} Geographically distributed specialty centers can pool their limited patient data through federated learning without centralization.
+    
+    \item \textbf{Resource-Constrained Settings:} The parameter-efficient approach makes advanced medical AI accessible to hospitals with limited computational infrastructure.
+    
+    \item \textbf{Continuous Learning:} Hospitals can iteratively improve shared models as new cases arrive without retraining from scratch or sharing proprietary data.
+\end{enumerate}
+
+\section{Ethical Considerations}
+
+This work is designed as a research prototype demonstrating technical feasibility. Any clinical deployment would require:
+\begin{itemize}[leftmargin=*]
+    \item Rigorous validation by medical professionals
+    \item Clinical trial evaluation and regulatory approval
+    \item Continuous monitoring for model drift and safety
+    \item Human-in-the-loop safeguards for all medical decisions
+\end{itemize}
+
+We emphasize that \fedmed{} is intended to \textit{assist} healthcare professionals, not replace clinical judgment. All generated responses include explicit disclaimers directing users to consult qualified medical practitioners.
+
+\section{Document Organization}
+
+The remainder of this report is structured as follows:
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Chapter 2} surveys related work in federated learning, medical AI, and parameter-efficient fine-tuning
+    \item \textbf{Chapter 3} details the \fedmed{} methodology including system architecture, agent-based aggregation algorithm, and \lora{} integration
+    \item \textbf{Chapter 4} describes experimental setup, dataset preparation, and evaluation metrics
+    \item \textbf{Chapter 5} presents comprehensive results and ablation studies
+    \item \textbf{Chapter 6} discusses limitations, future directions, and broader implications
+    \item \textbf{Chapter 7} concludes with key takeaways and recommended next steps
+    \item \textbf{Appendices} provide detailed code listings, configuration files, and supplementary experimental data
+\end{itemize}

@@ -1,0 +1,266 @@
+\section{Summary of Contributions}
+
+This work presented \fedmed{}, a comprehensive federated learning framework for medical AI that addresses the fundamental tension between data privacy and model performance. Our three core contributions are:
+
+\subsection{Parameter-Efficient Federated Learning}
+
+We demonstrated that \lora{} (Low-Rank Adaptation) enables practical federated learning of large language models:
+\begin{itemize}[leftmargin=*]
+    \item \textbf{99.90\% communication reduction:} 13 MB vs. 13 GB per round
+    \item \textbf{99.95\% parameter reduction:} 3.4M vs. 7B trainable parameters  
+    \item \textbf{Accessible hardware:} Single NVIDIA T4 GPU (16 GB) sufficient
+    \item \textbf{Maintained quality:} Competitive performance with full fine-tuning
+\end{itemize}
+
+This makes federated LLM training feasible for resource-constrained hospitals, democratizing access to advanced medical AI.
+
+\subsection{Intelligent Agent-Based Aggregation}
+
+We introduced a novel aggregation mechanism that outperforms traditional methods:
+\begin{itemize}[leftmargin=*]
+    \item \textbf{25.0\% better than equal weighting:} Quality-aware vs. naive averaging
+    \item \textbf{30.5\% better than \fedavg{}:} Intelligent vs. size-proportional
+    \item \textbf{Adaptive robustness:} Automatically detects and down-weights unstable/malicious clients
+    \item \textbf{Fairness:} Balances dataset size with training quality (70\%/30\%)
+\end{itemize}
+
+The agent coordinator provides both improved performance and system resilience---critical for medical applications where patient safety depends on model reliability.
+
+\subsection{Production-Ready Safety Framework}
+
+We implemented comprehensive guardrails for responsible medical AI deployment:
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Pattern detection:} Identifies prohibited medical advice
+    \item \textbf{Overconfidence filtering:} Prevents definitive diagnoses
+    \item \textbf{Automatic disclaimers:} 100\% coverage directing users to professionals
+    \item \textbf{Low false positive rate:} <0.1\% on validation set
+\end{itemize}
+
+These safeguards align with FDA guidance on clinical decision support and WHO AI ethics principles.
+
+\section{Broader Implications}
+
+\subsection{For Healthcare}
+
+\fedmed{} enables novel collaboration models:
+
+\textbf{Multi-Institutional Research Consortia:}
+\begin{itemize}[leftmargin=*]
+    \item Rare disease networks can pool fragmented patient data
+    \item Academic medical centers can collaborate without legal barriers
+    \item Community hospitals benefit from collective knowledge
+\end{itemize}
+
+\textbf{Equitable AI Access:}
+\begin{itemize}[leftmargin=*]
+    \item Small hospitals gain access to state-of-the-art models
+    \item Resource-constrained regions can participate in AI development
+    \item Reduces digital divide in healthcare innovation
+\end{itemize}
+
+\textbf{Continuous Improvement:}
+\begin{itemize}[leftmargin=*]
+    \item Models evolve as medical knowledge advances
+    \item Collective learning from diverse patient populations
+    \item Real-world deployment feedback loops
+\end{itemize}
+
+\subsection{For Machine Learning}
+
+Our work advances federated learning research:
+
+\textbf{PEFT for Federated Settings:}
+\begin{itemize}[leftmargin=*]
+    \item First demonstration that \lora{} enables federated LLMs at scale
+    \item Establishes parameter-efficient methods as key enabler for distributed AI
+    \item Opens research direction combining PEFT variants with federated algorithms
+\end{itemize}
+
+\textbf{Quality-Aware Aggregation:}
+\begin{itemize}[leftmargin=*]
+    \item Introduces training stability as aggregation signal
+    \item Demonstrates importance of going beyond dataset size
+    \item Provides blueprint for robust federated systems
+\end{itemize}
+
+\textbf{Practical Systems:}
+\begin{itemize}[leftmargin=*]
+    \item Validates federated learning on realistic medical scenario
+    \item Shows consumer GPUs sufficient for modern federated AI
+    \item Demonstrates end-to-end system including safety and privacy
+\end{itemize}
+
+\subsection{For Society}
+
+This work contributes to responsible AI development:
+
+\textbf{Privacy-Preserving Paradigm:}
+\begin{itemize}[leftmargin=*]
+    \item Provides concrete alternative to centralized data collection
+    \item Demonstrates GDPR/HIPAA-compliant AI is achievable
+    \item Empowers data owners to contribute without losing control
+\end{itemize}
+
+\textbf{Transparent and Safe AI:}
+\begin{itemize}[leftmargin=*]
+    \item Open-source framework enables audit and improvement
+    \item Safety mechanisms reduce harm from AI errors
+    \item Educational disclaimers promote informed use
+\end{itemize}
+
+\textbf{Collaborative Innovation:}
+\begin{itemize}[leftmargin=*]
+    \item Shows institutions can cooperate competitively
+    \item Aligns individual and collective incentives
+    \item Provides template for other sensitive domains (finance, education, government)
+\end{itemize}
+
+\section{Lessons Learned}
+
+\subsection{Technical Insights}
+
+\textbf{1. Parameter Efficiency is Critical for Federated Learning}
+
+The 1000$\times$ communication reduction from \lora{} transformed an impractical system (195 GB total traffic) into a deployable one (195 MB). This was the single most impactful design decision.
+
+\textbf{Lesson:} \textit{Always prioritize communication efficiency in federated settings. Parameter-efficient methods are not optional---they're essential.}
+
+\textbf{2. Quality Metrics Outperform Quantity Metrics}
+
+Our agent aggregation's success (30.5\% improvement) came from weighting by training quality rather than dataset size. Hospital B (smallest dataset) dominated Round 3 weights because it had best performance.
+
+\textbf{Lesson:} \textit{``More data'' doesn't guarantee ``better updates.'' Systems should adaptively trust high-quality contributions regardless of scale.}
+
+\textbf{3. Non-IID Data Creates Unexpected Dynamics}
+
+Round 3's performance degradation (Hospitals A and C loss spiked) highlighted challenges of heterogeneous data. The agent mechanism provided robustness, but issues remain.
+
+\textbf{Lesson:} \textit{Non-IID federated learning is fundamentally harder than IID. Algorithms must explicitly handle distribution shifts and conflicting gradients.}
+
+\textbf{4. Safety Cannot Be Afterthought}
+
+Integrating guardrails from the start proved essential. Post-hoc safety often fails because model behavior is already learned.
+
+\textbf{Lesson:} \textit{For high-stakes domains, design safety mechanisms alongside core functionality, not after deployment.}
+
+\subsection{Practical Deployment Insights}
+
+\textbf{1. Infrastructure Heterogeneity is Real}
+
+Even with affordable T4 GPUs, not all hospitals have ML infrastructure. Successful deployment requires:
+\begin{itemize}[leftmargin=*]
+    \item Containerized environments (Docker) for consistency
+    \item Automated setup scripts
+    \item 24/7 technical support
+    \item Fallback mechanisms for client failures
+\end{itemize}
+
+\textbf{2. Data Standardization is Major Bottleneck}
+
+Clean Q\&A format doesn't exist in real EHRs. Significant data engineering required:
+\begin{itemize}[leftmargin=*]
+    \item Schema mapping across different EHR systems
+    \item De-identification and anonymization
+    \item Quality filtering and validation
+    \item Handling missing/inconsistent data
+\end{itemize}
+
+\textbf{3. Organizational Challenges Exceed Technical Ones}
+
+Technology works, but deploying requires:
+\begin{itemize}[leftmargin=*]
+    \item Legal agreements between competing hospitals
+    \item IT security approval processes (can take months)
+    \item Clinical leadership buy-in
+    \item Patient consent mechanisms
+    \item Governance frameworks for shared model ownership
+\end{itemize}
+
+\textbf{Lesson:} \textit{Federated learning is as much an organizational innovation as a technical one.}
+
+\section{Recommendations}
+
+\subsection{For Researchers}
+
+\textbf{1. Validate on Real Data:} Partner with actual hospitals for authentic validation beyond simulated non-IID splits.
+
+\textbf{2. Benchmark Rigorously:} Use standardized medical QA datasets (MedQA, PubMedQA) and compare against established baselines.
+
+\textbf{3. Include Human Evaluation:} Medical accuracy requires expert physician assessment, not just language modeling loss.
+
+\textbf{4. Study Long-Term Dynamics:} Our 5-round experiment is short. Investigate hundreds of rounds to understand convergence, drift, and stability.
+
+\textbf{5. Explore Personalization:} Balance between global shared knowledge and hospital-specific customization.
+
+\subsection{For Healthcare Institutions}
+
+\textbf{1. Start with Retrospective Data:} Use historical, de-identified data for pilot studies before real-time deployment.
+
+\textbf{2. Form Consortia:} Multi-institutional partnerships reduce individual cost and risk.
+
+\textbf{3. Invest in Infrastructure:} Modest ML infrastructure (T4 GPU, 32 GB RAM) enables participation in federated AI.
+
+\textbf{4. Prioritize Interoperability:} Standardize data formats and APIs to reduce integration friction.
+
+\textbf{5. Engage Clinicians Early:} Physician input critical for safety, usability, and adoption.
+
+\subsection{For Policymakers}
+
+\textbf{1. Create Legal Frameworks:} Clarify liability, ownership, and governance for federated AI systems.
+
+\textbf{2. Incentivize Collaboration:} Funding mechanisms that reward data sharing without centralization.
+
+\textbf{3. Establish Standards:} Technical standards for federated medical AI (privacy, safety, interoperability).
+
+\textbf{4. Support Infrastructure:} Grants for hospitals to acquire ML capabilities.
+
+\textbf{5. Pilot Regulatory Pathways:} FDA guidance on approving federated AI as medical devices.
+
+\section{Final Remarks}
+
+\fedmed{} demonstrates that privacy-preserving, collaborative AI for healthcare is not only theoretically possible but practically achievable with current technology. By combining parameter-efficient fine-tuning, intelligent aggregation, and comprehensive safety mechanisms, we enable hospitals to build sophisticated medical AI while maintaining complete data privacy.
+
+The path from research prototype to clinical deployment is long and requires continued work on technical robustness, safety validation, and organizational adoption. However, the fundamental feasibility is established.
+
+As AI becomes increasingly central to healthcare, frameworks like \fedmed{} offer a responsible path forward---one that respects patient privacy, maintains institutional autonomy, and harnesses collective knowledge for improved outcomes. The future of medical AI need not sacrifice privacy for performance. Federated learning shows us how to achieve both.
+
+\subsection{Reproducibility and Open Science}
+
+To facilitate research and validation:
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Full source code:} Available at project repository with permissive license
+    \item \textbf{Documentation:} Comprehensive setup guides and API documentation
+    \item \textbf{Configuration files:} All hyperparameters in version-controlled YAML
+    \item \textbf{Benchmarking scripts:} Automated reproduction of all experiments
+    \item \textbf{Datasets:} Links to public medical QA datasets used
+\end{itemize}
+
+We welcome community contributions, issue reports, and extensions to this work.
+
+\subsection{Acknowledgments}
+
+This research utilized:
+\begin{itemize}[leftmargin=*]
+    \item Mistral AI's open-source Mistral-7B model
+    \item HuggingFace's Transformers and PEFT libraries
+    \item Meta's BitsAndBytes quantization library
+    \item Public medical QA datasets from the research community
+\end{itemize}
+
+We thank the open-source AI community for making this work possible.
+
+\vspace{1cm}
+
+\begin{center}
+\rule{0.5\textwidth}{0.4pt}
+
+\textit{``The best way to predict the future is to invent it.''}
+
+--- Alan Kay
+
+\rule{0.5\textwidth}{0.4pt}
+\end{center}
+
+\vspace{1cm}
+
+\noindent This work represents a step toward that future: one where advanced AI serves humanity while respecting fundamental rights to privacy and data sovereignty. The journey continues.

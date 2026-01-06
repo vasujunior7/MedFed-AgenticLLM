@@ -1,0 +1,11 @@
+2026-01-06 10:27:30.304320: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+`torch_dtype` is deprecated! Use `dtype` instead!
+
+======================================================================
+🚀 INITIALIZING FED-MED GRADIO APPLICATION
+======================================================================
+
+🔄 Loading model from hospital_B...
+Loading checkpoint shards:   0%|          | 0/3 [00:00<?, ?it/s]Loading checkpoint shards:  33%|███▎      | 1/3 [00:06<00:13,  6.78s/it]Loading checkpoint shards:  67%|██████▋   | 2/3 [00:13<00:06,  6.86s/it]Loading checkpoint shards: 100%|██████████| 3/3 [00:19<00:00,  6.50s/it]Loading checkpoint shards: 100%|██████████| 3/3 [00:19<00:00,  6.59s/it]
+Asking to truncate to max_length but no maximum length is provided and the model has no predefined maximum length. Default to no truncation.

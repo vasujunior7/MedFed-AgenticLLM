@@ -1,0 +1,21 @@
+# Training Configuration - Optimized for Colab T4 GPU
+# Effective batch size: 8 (1 * 8)
+# Memory efficient with fp16
+
+training:
+  per_device_train_batch_size: 1
+  gradient_accumulation_steps: 8
+  effective_batch_size: 8  # per_device * gradient_accumulation
+  learning_rate: 2e-4
+  num_train_epochs: 1
+  warmup_ratio: 0.05
+  lr_scheduler_type: "cosine"
+  fp16: true  # Mixed precision training for memory efficiency
+  logging_steps: 10
+  save_steps: 500
+  eval_steps: 500
+  gradient_checkpointing: true
+
+optimizer:
+  type: "adamw"
+  weight_decay: 0.01

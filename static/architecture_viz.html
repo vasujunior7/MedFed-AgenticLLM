@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FED-MED Architecture</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            overflow: hidden;
+        }
+        #viz-container {
+            width: 100%;
+            height: 500px;
+            background: white;
+            border-radius: 10px;
+            position: relative;
+        }
+        svg { width: 100%; height: 100%; }
+        .node { cursor: pointer; transition: all 0.3s ease; }
+        .node circle {
+            stroke: #fff;
+            stroke-width: 3px;
+            filter: drop-shadow(0 2px 8px rgba(0,0,0,0.2));
+        }
+        .node:hover circle { stroke-width: 5px; }
+        .node.hospital circle { fill: #3498db; }
+        .node.agent circle { fill: #e74c3c; }
+        .node.server circle { fill: #2ecc71; }
+        .node.highlighted circle {
+            stroke: #f39c12;
+            stroke-width: 6px;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+        .node text {
+            font-size: 12px;
+            font-weight: bold;
+            fill: #2c3e50;
+            text-anchor: middle;
+            pointer-events: none;
+        }
+        .link {
+            fill: none;
+            stroke: #95a5a6;
+            stroke-width: 2px;
+            opacity: 0.3;
+        }
+        .link.active {
+            stroke: #e74c3c;
+            stroke-width: 3px;
+            opacity: 0.8;
+            animation: flow 2s linear infinite;
+        }
+        @keyframes flow {
+            0% { stroke-dashoffset: 0; }
+            100% { stroke-dashoffset: 20; }
+        }
+        .badge {
+            font-size: 10px;
+            fill: white;
+            text-anchor: middle;
+        }
+        .status-text {
+            font-size: 11px;
+            fill: #7f8c8d;
+            text-anchor: middle;
+        }
+        #legend {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            font-size: 11px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+        }
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            margin-right: 8px;
+            border: 2px solid white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+    </style>
+</head>
+<body>
+    <div id="viz-container">
+        <svg id="architecture-svg"></svg>
+        <div id="legend">
+            <div style="font-weight: bold; margin-bottom: 8px;">FED-MED Architecture</div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #3498db;"></div>
+                <span>Hospitals</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #e74c3c;"></div>
+                <span>Agent</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #2ecc71;"></div>
+                <span>Server</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const width = 800;
+        const height = 500;
+        
+        const svg = d3.select("#architecture-svg")
+            .attr("viewBox", `0 0 ${width} ${height}`);
+        
+        const nodes = [
+            { id: "hospital_A", label: "Hospital A", type: "hospital", x: 120, y: 120, samples: 4520, weight: 0.227 },
+            { id: "hospital_B", label: "Hospital B", type: "hospital", x: 120, y: 250, samples: 2521, weight: 0.547 },
+            { id: "hospital_C", label: "Hospital C", type: "hospital", x: 120, y: 380, samples: 2959, weight: 0.225 },
+            { id: "agent", label: "Agentic\nCoordinator", type: "agent", x: 400, y: 250 },
+            { id: "server", label: "Federated\nServer", type: "server", x: 680, y: 250, round: 3 }
+        ];
+        
+        const links = [
+            { source: "hospital_A", target: "agent" },
+            { source: "hospital_B", target: "agent" },
+            { source: "hospital_C", target: "agent" },
+            { source: "agent", target: "server" }
+        ];
+        
+        const linkGroup = svg.append("g").attr("class", "links");
+        
+        const linkPaths = linkGroup.selectAll("path")
+            .data(links)
+            .enter()
+            .append("path")
+            .attr("class", "link")
+            .attr("stroke-dasharray", "5,5")
+            .attr("d", d => {
+                const source = nodes.find(n => n.id === d.source);
+                const target = nodes.find(n => n.id === d.target);
+                return `M ${source.x + 35} ${source.y} L ${target.x - 35} ${target.y}`;
+            });
+        
+        const nodeGroup = svg.append("g").attr("class", "nodes");
+        
+        const nodeElements = nodeGroup.selectAll("g")
+            .data(nodes)
+            .enter()
+            .append("g")
+            .attr("class", d => `node ${d.type}`)
+            .attr("transform", d => `translate(${d.x}, ${d.y})`);
+        
+        nodeElements.append("circle")
+            .attr("r", d => d.type === "agent" ? 45 : d.type === "server" ? 50 : 35);
+        
+        nodeElements.append("text")
+            .attr("dy", d => d.type === "agent" || d.type === "server" ? -8 : 5)
+            .text(d => d.label.split('\n')[0]);
+        
+        nodeElements.filter(d => d.label.includes('\n'))
+            .append("text")
+            .attr("dy", 5)
+            .text(d => d.label.split('\n')[1]);
+        
+        nodeElements.filter(d => d.type === "hospital")
+            .append("text")
+            .attr("class", "status-text")
+            .attr("dy", 22)
+            .text(d => `${(d.samples/1000).toFixed(1)}k samples`);
+        
+        nodeElements.filter(d => d.type === "hospital")
+            .append("circle")
+            .attr("cx", 25)
+            .attr("cy", -25)
+            .attr("r", 16)
+            .attr("fill", "#f39c12");
+        
+        nodeElements.filter(d => d.type === "hospital")
+            .append("text")
+            .attr("class", "badge weight-badge")
+            .attr("x", 25)
+            .attr("y", -21)
+            .text(d => `${Math.round(d.weight * 100)}%`);
+        
+        nodeElements.filter(d => d.type === "server")
+            .append("circle")
+            .attr("cy", -40)
+            .attr("r", 18)
+            .attr("fill", "#9b59b6");
+        
+        nodeElements.filter(d => d.type === "server")
+            .append("text")
+            .attr("class", "badge round-badge")
+            .attr("y", -36)
+            .text(`R${nodes.find(n => n.type === "server").round}`);
+        
+        function activateFlow(from, to) {
+            linkPaths
+                .filter(d => d.source === from && d.target === to)
+                .classed("active", true)
+                .transition()
+                .duration(2000)
+                .on("end", function() {
+                    d3.select(this).classed("active", false);
+                });
+        }
+        
+        function highlightNode(nodeId) {
+            nodeElements.classed("highlighted", d => d.id === nodeId);
+        }
+        
+        function updateWeights(weights) {
+            for (const [hospitalId, weight] of Object.entries(weights)) {
+                const node = nodes.find(n => n.id === hospitalId);
+                if (node) {
+                    node.weight = weight;
+                    nodeElements
+                        .filter(d => d.id === hospitalId)
+                        .select(".weight-badge")
+                        .text(`${Math.round(weight * 100)}%`);
+                }
+            }
+        }
+        
+        function updateRound(round) {
+            const serverNode = nodes.find(n => n.type === "server");
+            if (serverNode) {
+                serverNode.round = round;
+                nodeElements
+                    .filter(d => d.type === "server")
+                    .select(".round-badge")
+                    .text(`R${round}`);
+            }
+        }
+        
+        function simulateTraining() {
+            setTimeout(() => {
+                highlightNode("hospital_A");
+                setTimeout(() => activateFlow("hospital_A", "agent"), 500);
+            }, 1000);
+            
+            setTimeout(() => {
+                highlightNode("hospital_B");
+                setTimeout(() => activateFlow("hospital_B", "agent"), 500);
+            }, 2000);
+            
+            setTimeout(() => {
+                highlightNode("hospital_C");
+                setTimeout(() => activateFlow("hospital_C", "agent"), 500);
+            }, 3000);
+            
+            setTimeout(() => {
+                highlightNode("agent");
+                setTimeout(() => activateFlow("agent", "server"), 500);
+            }, 4500);
+            
+            setTimeout(() => {
+                highlightNode("server");
+            }, 6000);
+            
+            setTimeout(() => highlightNode(null), 7000);
+        }
+        
+        window.vizAPI = {
+            activateFlow,
+            highlightNode,
+            updateWeights,
+            updateRound,
+            simulateTraining
+        };
+        
+        setTimeout(() => simulateTraining(), 1000);
+        setInterval(() => simulateTraining(), 15000);
+    </script>
+</body>
+</html>

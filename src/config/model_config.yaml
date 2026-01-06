@@ -1,0 +1,23 @@
+# Model Configuration - Optimized for Colab T4 GPU
+# VRAM Usage: < 15 GB
+# Model: Mistral-7B-Instruct-v0.2
+
+model:
+  name: "mistralai/Mistral-7B-Instruct-v0.2"
+  max_seq_length: 2048  # Truncate dynamically
+  padding_side: "left"  # Left padding for causal LM
+  temperature: 0.7
+  top_p: 0.9
+  gradient_checkpointing: true  # Essential for memory efficiency
+
+# LoRA (PEFT) - VERY IMPORTANT
+# Keeps VRAM < 15 GB, stable training, widely used config
+lora:
+  r: 8
+  lora_alpha: 16
+  lora_dropout: 0.05
+  target_modules:
+    - "q_proj"
+    - "v_proj"
+  bias: "none"
+  task_type: "CAUSAL_LM"

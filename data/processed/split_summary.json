@@ -1,0 +1,23 @@
+{
+  "total_samples": 10000,
+  "num_clients": 3,
+  "alpha": 0.5,
+  "seed": 42,
+  "clients": {
+    "hospital_A": {
+      "count": 4520,
+      "percentage": 45.2,
+      "path": "data/processed/hospital_A/dataset.jsonl"
+    },
+    "hospital_B": {
+      "count": 2521,
+      "percentage": 25.21,
+      "path": "data/processed/hospital_B/dataset.jsonl"
+    },
+    "hospital_C": {
+      "count": 2959,
+      "percentage": 29.59,
+      "path": "data/processed/hospital_C/dataset.jsonl"
+    }
+  }
+}

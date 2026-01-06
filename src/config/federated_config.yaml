@@ -1,0 +1,22 @@
+# Federated Learning Configuration - Optimized for Colab T4
+# 3 clients, 5 rounds, weighted aggregation (agent-controlled)
+
+federated:
+  num_clients: 3
+  num_rounds: 5
+  local_steps: 50  # Training steps per client per round
+  fraction_fit: 1.0
+  fraction_evaluate: 1.0
+  min_available_clients: 3
+
+hospitals:
+  - name: "hospital_A"
+    data_path: "data/processed/hospital_A"
+  - name: "hospital_B"
+    data_path: "data/processed/hospital_B"
+  - name: "hospital_C"
+    data_path: "data/processed/hospital_C"
+
+aggregation:
+  strategy: "weighted"  # Agent-controlled weighted aggregation
+  method: "fedavg"

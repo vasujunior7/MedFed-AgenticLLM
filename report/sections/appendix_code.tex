@@ -1,0 +1,452 @@
+\section{System Architecture Overview}
+
+The \fedmed{} codebase follows a modular architecture with clear separation of concerns:
+
+\begin{verbatim}
+FED-MED/
+├── src/
+│   ├── agent/              # Intelligent aggregation
+│   │   ├── coordinator.py  # Agent-based weighting
+│   │   └── metrics.py      # Quality scoring
+│   ├── config/             # YAML configurations
+│   │   ├── federated_config.yaml
+│   │   ├── model_config.yaml
+│   │   └── training_config.yaml
+│   ├── data/               # Data loading and preprocessing
+│   │   ├── load_dataset.py
+│   │   ├── preprocess.py
+│   │   └── federated_split.py
+│   ├── federated/          # Federated learning core
+│   │   ├── client.py       # FL client implementation
+│   │   ├── server.py       # FL server orchestration
+│   │   └── aggregation.py  # Parameter aggregation
+│   ├── model/              # Model loading and setup
+│   │   ├── load_model.py
+│   │   ├── lora_setup.py
+│   │   └── inference.py
+│   ├── training/           # Training loops
+│   │   ├── local_train.py
+│   │   └── federated_train.py
+│   ├── safety/             # Medical safety guardrails
+│   │   └── guardrails.py
+│   └── utils/
+│       └── logging.py
+├── tests/                  # Unit and integration tests
+├── demo/                   # Streamlit demo application
+└── notebooks/              # Jupyter notebooks for experiments
+\end{verbatim}
+
+\section{Core Implementation: Agent Coordinator}
+\label{app:agent_code}
+
+The agent-based aggregation coordinator is the key innovation. Complete implementation:
+
+\lstinputlisting[
+    style=python,
+    caption={AgenticAggregator Implementation (src/agent/coordinator.py)},
+    label=lst:agent_coordinator,
+    firstline=1,
+    lastline=150
+]{../src/agent/coordinator.py}
+
+\textbf{Key Methods:}
+\begin{itemize}[leftmargin=*]
+    \item \texttt{compute\_client\_scores()}: Calculates quality scores based on loss and stability
+    \item \texttt{compute\_aggregation\_weights()}: Combines quality scores with dataset size
+    \item \texttt{detect\_malicious\_clients()}: Identifies potential adversarial behavior
+\end{itemize}
+
+\section{Federated Client Implementation}
+\label{app:client_code}
+
+The federated client handles local training and communication:
+
+\begin{lstlisting}[style=python, caption=MedicalFLClient Core Methods (src/federated/client.py), label=lst:fl_client]
+class MedicalFLClient:
+    """Federated learning client for medical AI training."""
+    
+    def __init__(self, hospital_id: str, data_path: str, model, tokenizer):
+        self.hospital_id = hospital_id
+        self.data_path = data_path
+        self.model = model
+        self.tokenizer = tokenizer
+        self.training_history = []
+    
+    def load_local_data(self) -> List[Dict]:
+        """Load private hospital data (never transmitted)."""
+        with open(self.data_path, 'r') as f:
+            data = [json.loads(line) for line in f]
+        return data
+    
+    def train_local_model(
+        self, 
+        num_steps: int, 
+        learning_rate: float = 2e-4
+    ) -> Dict:
+        """
+        Train LoRA adapters on local private data.
+        
+        Returns:
+            Training metrics (loss, variance, VRAM, etc.)
+        """
+        # Prepare data
+        train_dataset = self.load_local_data()
+        
+        # Setup optimizer (only for LoRA parameters)
+        lora_params = [p for p in self.model.parameters() if p.requires_grad]
+        optimizer = AdamW(lora_params, lr=learning_rate, weight_decay=0.01)
+        
+        # Training loop
+        losses = []
+        initial_loss = self.evaluate()
+        
+        for step in range(num_steps):
+            batch = sample_batch(train_dataset)
+            
+            # Forward pass
+            outputs = self.model(**batch)
+            loss = outputs.loss
+            
+            # Backward pass (only updates LoRA)
+            loss.backward()
+            optimizer.step()
+            optimizer.zero_grad()
+            
+            losses.append(loss.item())
+        
+        final_loss = self.evaluate()
+        
+        # Collect metrics
+        metrics = {
+            'hospital': self.hospital_id,
+            'num_samples': len(train_dataset),
+            'initial_loss': initial_loss,
+            'final_loss': final_loss,
+            'loss_reduction': (initial_loss - final_loss) / initial_loss * 100,
+            'variance': np.std(losses),
+            'loss_history': losses
+        }
+        
+        return metrics
+    
+    def get_lora_parameters(self) -> Dict[str, torch.Tensor]:
+        """Extract only LoRA parameters for transmission (13 MB)."""
+        lora_state = {}
+        for name, param in self.model.named_parameters():
+            if 'lora' in name.lower():
+                lora_state[name] = param.data.clone()
+        return lora_state
+    
+    def set_lora_parameters(self, lora_state: Dict[str, torch.Tensor]):
+        """Receive global LoRA parameters from server."""
+        for name, param in self.model.named_parameters():
+            if name in lora_state:
+                param.data.copy_(lora_state[name])
+\end{lstlisting}
+
+\section{LoRA Setup Implementation}
+\label{app:lora_code}
+
+Complete \lora{} configuration and integration:
+
+\begin{lstlisting}[style=python, caption=LoRA Configuration (src/model/lora\_setup.py), label=lst:lora_setup]
+from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
+
+def setup_lora_model(base_model, lora_config: Dict) -> PeftModel:
+    """
+    Apply LoRA adapters to base model.
+    
+    Args:
+        base_model: Pre-loaded Mistral-7B (quantized)
+        lora_config: Configuration dict with r, alpha, dropout, etc.
+    
+    Returns:
+        Model with LoRA adapters applied
+    """
+    # Prepare for k-bit training
+    model = prepare_model_for_kbit_training(base_model)
+    
+    # Configure LoRA
+    config = LoraConfig(
+        r=lora_config.get('r', 8),                    # Rank
+        lora_alpha=lora_config.get('alpha', 16),      # Scaling
+        target_modules=['q_proj', 'v_proj'],          # Attention layers
+        lora_dropout=lora_config.get('dropout', 0.05),
+        bias='none',
+        task_type='CAUSAL_LM'
+    )
+    
+    # Apply LoRA
+    model = get_peft_model(model, config)
+    
+    # Print trainable parameters
+    trainable, total = model.get_nb_trainable_parameters()
+    print(f"Trainable parameters: {trainable:,} ({trainable/total*100:.2f}%)")
+    
+    return model
+
+def get_lora_state_dict(model) -> Dict[str, torch.Tensor]:
+    """Extract only LoRA adapter weights (13 MB)."""
+    return {
+        name: param.cpu().clone()
+        for name, param in model.named_parameters()
+        if 'lora' in name
+    }
+
+def compute_lora_size(state_dict: Dict) -> float:
+    """Compute size of LoRA parameters in MB."""
+    total_params = sum(p.numel() for p in state_dict.values())
+    size_bytes = total_params * 2  # FP16 = 2 bytes per parameter
+    size_mb = size_bytes / (1024 ** 2)
+    return size_mb
+\end{lstlisting}
+
+\section{Safety Guardrails Implementation}
+\label{app:safety_code}
+
+Complete safety validation system:
+
+\begin{lstlisting}[style=python, caption=Medical Safety Guardrails (src/safety/guardrails.py), label=lst:guardrails]
+import re
+from typing import Tuple
+
+class MedicalGuardrails:
+    """Safety validation for medical AI responses."""
+    
+    PROHIBITED_PATTERNS = [
+        r"you should take",
+        r"I recommend taking",
+        r"you must",
+        r"definitely have",
+        r"definitely don't have",
+        r"guaranteed to cure",
+        r"certainly have",
+    ]
+    
+    MEDICAL_DISCLAIMER = """
+    
+**IMPORTANT MEDICAL DISCLAIMER:**
+This AI assistant provides general health information only and is NOT a 
+substitute for professional medical advice, diagnosis, or treatment. 
+Always consult with qualified healthcare professionals for medical 
+concerns. In case of emergency, call 911 or your local emergency number.
+"""
+    
+    def __init__(self):
+        self.patterns = [re.compile(p, re.IGNORECASE) 
+                        for p in self.PROHIBITED_PATTERNS]
+    
+    def validate_response(self, response: str) -> Tuple[bool, str]:
+        """
+        Validate medical response for safety.
+        
+        Returns:
+            (is_safe, reason_or_disclaimer)
+        """
+        # Check for prohibited patterns
+        for pattern in self.patterns:
+            if pattern.search(response):
+                return False, f"Prohibited pattern detected: {pattern.pattern}"
+        
+        # Check for overconfidence
+        if self._is_overconfident(response):
+            return False, "Response shows excessive certainty"
+        
+        # Add disclaimer
+        safe_response = response + self.MEDICAL_DISCLAIMER
+        return True, safe_response
+    
+    def _is_overconfident(self, response: str) -> bool:
+        """Detect overconfident medical statements."""
+        confidence_markers = [
+            "you have",
+            "diagnosis is",
+            "treatment should be",
+            "prescription:",
+        ]
+        
+        count = sum(1 for marker in confidence_markers 
+                   if marker.lower() in response.lower())
+        
+        return count >= 2  # Multiple confidence markers = overconfident
+    
+    def filter_harmful_content(self, query: str) -> Tuple[bool, str]:
+        """Filter potentially harmful user queries."""
+        harmful_keywords = [
+            "suicide",
+            "self-harm",
+            "overdose",
+            "how to die",
+        ]
+        
+        for keyword in harmful_keywords:
+            if keyword in query.lower():
+                return False, (
+                    "Your query suggests an emergency. "
+                    "Please contact emergency services immediately: "
+                    "Call 911 or the National Suicide Prevention Lifeline "
+                    "at 1-800-273-8255."
+                )
+        
+        return True, ""
+\end{lstlisting}
+
+\section{Data Split Verification}
+\label{app:verification}
+
+Script to verify federated data split integrity:
+
+\begin{lstlisting}[style=python, caption=Federated Split Verification (verify\_split.py), label=lst:verify_split]
+"""Verify federated data split has no overlaps."""
+import json
+from pathlib import Path
+
+def verify_federated_split(data_dir: Path) -> Dict:
+    """
+    Verify that federated data split maintains privacy.
+    
+    Checks:
+    1. No sample overlap between hospitals
+    2. All samples accounted for
+    3. Balanced distribution (within reason)
+    
+    Returns:
+        Verification results dict
+    """
+    hospitals = ['hospital_A', 'hospital_B', 'hospital_C']
+    datasets = {}
+    indices = {}
+    
+    # Load datasets
+    for hospital in hospitals:
+        path = data_dir / hospital / 'dataset.jsonl'
+        with open(path, 'r') as f:
+            data = [json.loads(line) for line in f]
+        datasets[hospital] = data
+        indices[hospital] = set(d['index'] for d in data)
+    
+    # Check overlaps
+    overlaps = {}
+    for i, h1 in enumerate(hospitals):
+        for h2 in hospitals[i+1:]:
+            overlap = indices[h1] & indices[h2]
+            if overlap:
+                overlaps[f"{h1}__{h2}"] = len(overlap)
+    
+    # Check totals
+    total_samples = sum(len(indices[h]) for h in hospitals)
+    unique_samples = len(set.union(*indices.values()))
+    
+    results = {
+        'sample_counts': {h: len(indices[h]) for h in hospitals},
+        'overlaps': overlaps,
+        'total_samples': total_samples,
+        'unique_samples': unique_samples,
+        'privacy_preserved': len(overlaps) == 0,
+        'all_accounted': total_samples == unique_samples,
+    }
+    
+    return results
+
+if __name__ == '__main__':
+    results = verify_federated_split(Path('data/processed'))
+    
+    print("Federated Split Verification")
+    print("=" * 60)
+    print(f"Sample Counts: {results['sample_counts']}")
+    print(f"Overlaps: {results['overlaps'] or 'None'}")
+    print(f"Privacy Preserved: {results['privacy_preserved']}")
+    print(f"All Accounted: {results['all_accounted']}")
+    
+    if results['privacy_preserved'] and results['all_accounted']:
+        print("\n✅ VERIFICATION PASSED")
+    else:
+        print("\n❌ VERIFICATION FAILED")
+\end{lstlisting}
+
+\section{Federated Training Loop}
+\label{app:training_loop}
+
+Main federated training orchestration:
+
+\begin{lstlisting}[style=python, caption=Federated Training Entry Point (federated\_train.py), label=lst:fed_train]
+def federated_training_loop(config: Dict):
+    """Main federated learning training loop."""
+    
+    # Initialize server
+    print("Initializing global model...")
+    model, tokenizer = setup_global_model(config)
+    
+    # Initialize clients
+    print("Initializing clients...")
+    clients = initialize_clients(config, model, tokenizer)
+    
+    # Initialize agent coordinator
+    aggregator = AgenticAggregator(
+        loss_weight=0.6, 
+        variance_weight=0.4
+    )
+    
+    # Training rounds
+    for round_num in range(1, config['rounds'] + 1):
+        print(f"\n{'='*70}")
+        print(f"ROUND {round_num}/{config['rounds']}")
+        print(f"{'='*70}\n")
+        
+        # Broadcast global model
+        global_lora = get_lora_state_dict(model)
+        for client in clients:
+            client.set_lora_parameters(global_lora)
+        
+        # Local training
+        client_metrics = []
+        client_updates = []
+        
+        for i, client in enumerate(clients):
+            print(f"--- Client {i+1}/{len(clients)}: {client.hospital_id} ---")
+            
+            # Train locally
+            metrics = client.train_local_model(
+                num_steps=config['local_steps'],
+                learning_rate=config['learning_rate']
+            )
+            
+            # Get updated parameters
+            lora_update = client.get_lora_parameters()
+            
+            client_metrics.append(metrics)
+            client_updates.append(lora_update)
+            
+            print(f"Loss: {metrics['initial_loss']:.4f} -> "
+                  f"{metrics['final_loss']:.4f} "
+                  f"({metrics['loss_reduction']:.2f}% reduction)")
+        
+        # Agent-based aggregation
+        print("\nComputing agent-based aggregation weights...")
+        sample_counts = [m['num_samples'] for m in client_metrics]
+        weights, analysis = aggregator.compute_aggregation_weights(
+            client_metrics, 
+            sample_counts
+        )
+        
+        print("Agent Weights:")
+        for i, (client, w) in enumerate(zip(clients, weights)):
+            print(f"  {client.hospital_id}: {w:.3f}")
+        
+        # Aggregate updates
+        global_update = aggregate_parameters(client_updates, weights)
+        set_lora_parameters(model, global_update)
+        
+        # Compute global loss
+        global_loss = sum(w * m['final_loss'] 
+                         for w, m in zip(weights, client_metrics))
+        
+        print(f"\nGlobal Loss: {global_loss:.4f}")
+        
+        # Save checkpoint
+        save_checkpoint(model, round_num, config['output_dir'])
+        save_metrics(client_metrics, weights, round_num)
+    
+    print("\n✅ Federated training complete!")
+    return model
+\end{lstlisting}

@@ -1,0 +1,92 @@
+{
+  "round": 2,
+  "client_metrics": [
+    {
+      "hospital": "hospital_A",
+      "num_samples": 4520,
+      "initial_loss": 0.3082030415534973,
+      "final_loss": 0.12759624421596527,
+      "loss_reduction": 58.599939970476456,
+      "steps": 100,
+      "peak_vram_gb": 5.022890090942383,
+      "lora_params_transmitted": 3407872,
+      "lora_size_mb": 13.0
+    },
+    {
+      "hospital": "hospital_B",
+      "num_samples": 2521,
+      "initial_loss": 0.18665865063667297,
+      "final_loss": 0.041954539716243744,
+      "loss_reduction": 77.52338850991303,
+      "steps": 100,
+      "peak_vram_gb": 5.022890090942383,
+      "lora_params_transmitted": 3407872,
+      "lora_size_mb": 13.0
+    },
+    {
+      "hospital": "hospital_C",
+      "num_samples": 2959,
+      "initial_loss": 0.2585465610027313,
+      "final_loss": 0.04706522449851036,
+      "loss_reduction": 81.79622876592308,
+      "steps": 100,
+      "peak_vram_gb": 5.022890090942383,
+      "lora_params_transmitted": 3407872,
+      "lora_size_mb": 13.0
+    }
+  ],
+  "agent_weights": [
+    0.28810534585556774,
+    0.3553065160995289,
+    0.3565881380449034
+  ],
+  "global_avg_loss": 0.06845078218143923,
+  "agent_analysis": {
+    "final_losses": [
+      0.12759624421596527,
+      0.041954539716243744,
+      0.04706522449851036
+    ],
+    "loss_improvements": [
+      0.18060679733753204,
+      0.14470411092042923,
+      0.21148133650422096
+    ],
+    "update_variances": [
+      0.0016760490834712982,
+      0.034226637333631516,
+      0.03255058825016022
+    ],
+    "loss_component": [
+      0.0,
+      1.0,
+      0.9403248124016117
+    ],
+    "variance_component": [
+      0.9510308574244777,
+      0.0,
+      0.04896914257552232
+    ],
+    "raw_scores": [
+      0.3804123429697911,
+      0.6,
+      0.583782544471176
+    ],
+    "unstable_clients": [],
+    "quality_scores": [
+      0.3804123429697911,
+      0.6,
+      0.583782544471176
+    ],
+    "final_weights": [
+      0.28810534585556774,
+      0.3553065160995289,
+      0.3565881380449034
+    ],
+    "sample_weights": [
+      0.452,
+      0.2521,
+      0.2959
+    ]
+  }
+}

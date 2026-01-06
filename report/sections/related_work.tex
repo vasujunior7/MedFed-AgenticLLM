@@ -1,0 +1,208 @@
+\section{Federated Learning}
+
+\subsection{Foundations}
+
+Federated learning, introduced by McMahan et al.~\cite{mcmahan2017communication}, enables collaborative model training across decentralized data sources without raw data exchange. The seminal \fedavg{} algorithm aggregates client model updates using a weighted average based on dataset sizes:
+
+\begin{equation}
+w_{t+1} = \sum_{k=1}^{K} \frac{n_k}{n} w_k^{t+1}
+\end{equation}
+
+where $w_{t+1}$ is the global model at round $t+1$, $w_k^{t+1}$ is client $k$'s model, $n_k$ is client $k$'s dataset size, and $n = \sum_{k=1}^{K} n_k$ is the total dataset size.
+
+This approach has been successfully deployed at scale by Google for mobile keyboard prediction~\cite{hard2018federated} and by Apple for QuickType suggestions~\cite{apple2019differential}. However, standard \fedavg{} makes several simplifying assumptions that limit its applicability to medical AI scenarios.
+
+\subsection{Challenges in Medical Federated Learning}
+
+Healthcare data presents unique challenges for federated learning:
+
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{Extreme Non-IID Distribution:} Hospital datasets are highly heterogeneous due to specialization (e.g., cancer centers vs. pediatric hospitals), geographic factors, and demographic variations. Li et al.~\cite{li2020federated} demonstrate that non-IID data can cause up to 55\% accuracy degradation in federated settings.
+    
+    \item \textbf{Data Imbalance:} Large academic medical centers may have 100$\times$ more patients than rural community hospitals, creating severe class and quantity imbalances.
+    
+    \item \textbf{Privacy Regulations:} HIPAA requires strict access controls, audit trails, and de-identification procedures. Vanilla federated learning can still leak information through gradient analysis~\cite{zhu2019deep}.
+    
+    \item \textbf{Communication Constraints:} Hospital IT infrastructure often has limited bandwidth and strict firewall policies, making frequent large model synchronization impractical.
+\end{enumerate}
+
+Several works have proposed federated learning specifically for healthcare:
+\begin{itemize}[leftmargin=*]
+    \item \textbf{NVIDIA FLARE}~\cite{roth2022nvidia}: Framework for medical imaging federated learning with differential privacy
+    \item \textbf{EXAM}~\cite{liu2021exam}: Cross-silo federated learning for electronic health records
+    \item \textbf{FedHealth}~\cite{chen2020fedhealth}: Personalized federated learning for mobile health monitoring
+\end{itemize}
+
+However, these approaches primarily focus on structured medical data (imaging, EHR tables) rather than large language models for medical question-answering.
+
+\subsection{Advanced Aggregation Methods}
+
+Recent work has moved beyond simple averaging to address data heterogeneity:
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{FedProx}~\cite{li2020federated}: Adds proximal term to local objectives: $\min_w F_k(w) + \frac{\mu}{2}\|w - w^t\|^2$
+    
+    \item \textbf{FedNova}~\cite{wang2020tackling}: Normalizes local updates to account for varying numbers of training steps
+    
+    \item \textbf{q-FedAvg}~\cite{li2019fair}: Fair aggregation that prioritizes clients with higher loss
+    
+    \item \textbf{FedDyn}~\cite{acar2021federated}: Dynamic regularization to align local and global objectives
+\end{itemize}
+
+Our agent-based aggregation extends these ideas by incorporating \textit{training quality metrics} (loss reduction, stability) rather than just dataset characteristics, providing robustness against low-quality or malicious updates.
+
+\section{Large Language Models in Healthcare}
+
+\subsection{Medical Question-Answering Systems}
+
+Early medical QA systems relied on knowledge bases and rule-based reasoning (e.g., MYCIN~\cite{shortliffe1975mycin}, INTERNIST-1~\cite{miller1982internist}). Modern neural approaches have achieved breakthrough performance:
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{BioBERT}~\cite{lee2020biobert}: Pre-trained BERT on PubMed abstracts and PMC full-text articles
+    \item \textbf{PubMedBERT}~\cite{gu2021domain}: Domain-specific BERT achieving state-of-the-art on biomedical NLP benchmarks
+    \item \textbf{BioGPT}~\cite{luo2022biogpt}: Generative pre-trained transformer for biomedical text
+    \item \textbf{Med-PaLM}~\cite{singhal2023large}: Google's medical-specialized version of PaLM achieving 67.6\% on MedQA
+    \item \textbf{Med-PaLM 2}~\cite{singhal2023towards}: Improved to 86.5\% on MedQA, approaching expert clinician performance
+\end{itemize}
+
+These models demonstrate strong medical reasoning capabilities but require centralized training on large proprietary datasets. \fedmed{} enables similar capabilities while preserving distributed data privacy.
+
+\subsection{Foundation Models and Instruction Tuning}
+
+The emergence of instruction-tuned foundation models has transformed NLP:
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{GPT-3/GPT-4}~\cite{brown2020language,openai2023gpt4}: Demonstrated strong few-shot learning and instruction following
+    \item \textbf{LLaMA}~\cite{touvron2023llama}: Open-source foundation models (7B--65B parameters)
+    \item \textbf{Mistral-7B}~\cite{jiang2023mistral}: High-performance 7B model with grouped-query attention and sliding window attention
+    \item \textbf{Alpaca}~\cite{taori2023alpaca}: Instruction-tuned LLaMA demonstrating that smaller models can approach GPT-3.5 performance with proper fine-tuning
+\end{itemize}
+
+We select Mistral-7B-Instruct-v0.2 as our base model due to its:
+\begin{enumerate}
+    \item Strong performance on medical reasoning benchmarks
+    \item Modest size (7B parameters) feasible for federated deployment
+    \item Permissive Apache 2.0 license enabling research and commercial use
+    \item Instruction-following capabilities reducing fine-tuning requirements
+\end{enumerate}
+
+\section{Parameter-Efficient Fine-Tuning}
+
+\subsection{Motivation}
+
+Full fine-tuning of large language models faces several challenges:
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Memory:} Updating 7B parameters requires storing gradients, optimizer states, and activations (often 3--4$\times$ model size)
+    \item \textbf{Storage:} Maintaining separate full copies for each downstream task or client
+    \item \textbf{Catastrophic Forgetting:} Risk of losing pre-trained knowledge during adaptation
+\end{itemize}
+
+Parameter-efficient fine-tuning (PEFT) methods update only a small subset of parameters:
+
+\subsection{Adapter-Based Methods}
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Adapter Layers}~\cite{houlsby2019parameter}: Insert small bottleneck layers between transformer blocks
+    \item \textbf{Compacter}~\cite{mahabadi2021compacter}: Low-rank adapter using Kronecker products
+    \item \textbf{Parallel Adapter}~\cite{he2022towards}: Place adapters in parallel rather than sequentially
+\end{itemize}
+
+\subsection{Prompt-Based Methods}
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Prefix Tuning}~\cite{li2021prefix}: Prepend trainable continuous prompts to each layer
+    \item \textbf{P-Tuning}~\cite{liu2021gpt}: Optimize prompt embeddings using LSTM-based encoder
+    \item \textbf{Prompt Tuning}~\cite{lester2021power}: Simplify to trainable soft prompts only at input layer
+\end{itemize}
+
+\subsection{Low-Rank Adaptation (LoRA)}
+
+Hu et al.~\cite{hu2021lora} proposed \lora{}, which has become the dominant PEFT method:
+
+\textbf{Core Idea:} Represent weight updates as low-rank decomposition:
+\begin{equation}
+W' = W + \Delta W = W + BA
+\end{equation}
+where $W \in \mathbb{R}^{d \times k}$ is frozen, $B \in \mathbb{R}^{d \times r}$, $A \in \mathbb{R}^{r \times k}$, and $r \ll \min(d,k)$.
+
+\textbf{Advantages:}
+\begin{enumerate}
+    \item \textbf{Efficiency:} Only train $r(d+k)$ parameters instead of $dk$
+    \item \textbf{No Inference Latency:} Can merge $BA$ into $W$ after training
+    \item \textbf{Task Switching:} Swap adapter matrices without reloading base model
+    \item \textbf{Memory Savings:} No additional forward pass complexity
+\end{enumerate}
+
+\textbf{Applications:}
+\begin{itemize}[leftmargin=*]
+    \item Natural language tasks: \lora{} achieves comparable or better performance than full fine-tuning on GLUE, SQuAD, and WikiSQL with 0.1\% trainable parameters
+    \item Vision tasks: Applied to vision transformers and diffusion models
+    \item Federated learning: Babakniya et al.~\cite{babakniya2023slora} combine \lora{} with FL but use standard aggregation
+\end{itemize}
+
+Our work extends \lora{} to federated medical AI with intelligent aggregation, addressing limitations of prior approaches.
+
+\subsection{Quantization-Aware Training}
+
+To further reduce memory footprint, we employ 4-bit quantization:
+\begin{itemize}[leftmargin=*]
+    \item \textbf{QLoRA}~\cite{dettmers2023qlora}: Combines \lora{} with 4-bit NormalFloat (NF4) quantization
+    \item \textbf{BitsAndBytes}~\cite{dettmers2022gpt3}: Library for efficient quantization with minimal accuracy loss
+\end{itemize}
+
+This enables training on consumer GPUs with 16 GB VRAM---critical for deployment at resource-constrained hospitals.
+
+\section{AI Safety and Medical Ethics}
+
+\subsection{Responsible Medical AI}
+
+Medical AI deployment requires careful consideration of safety and ethics:
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{FDA Guidance}~\cite{fda2021artificial}: Framework for clinical decision support software
+    \item \textbf{WHO Ethics}~\cite{who2021ethics}: Six principles for AI in healthcare (human autonomy, transparency, accountability, etc.)
+    \item \textbf{AMA Guidelines}~\cite{ama2018augmented}: Physician responsibilities when using AI
+\end{itemize}
+
+\subsection{Hallucination and Overconfidence}
+
+LLMs can generate plausible-sounding but medically incorrect information:
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Factual Errors:} Models may confidently state incorrect drug dosages or contraindications
+    \item \textbf{Outdated Information:} Training data may not reflect latest medical guidelines
+    \item \textbf{Context Misunderstanding:} Inability to assess patient-specific factors
+\end{itemize}
+
+Our safety guardrails address these issues through response validation and disclaimer injection.
+
+\subsection{Privacy and Security}
+
+Federated learning provides privacy benefits but is not perfect:
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Gradient Leakage}~\cite{zhu2019deep}: Gradients can sometimes be inverted to reconstruct training samples
+    \item \textbf{Differential Privacy}~\cite{abadi2016deep}: Add calibrated noise to provide formal privacy guarantees
+    \item \textbf{Secure Aggregation}~\cite{bonawitz2017practical}: Cryptographic protocols to prevent server from seeing individual updates
+\end{itemize}
+
+Future work could integrate these techniques into \fedmed{} for enhanced privacy.
+
+\section{Gap Analysis and Our Contributions}
+
+Despite significant progress, existing work has limitations:
+
+\begin{center}
+\begin{tabular}{@{}p{4cm}p{10cm}@{}}
+\toprule
+\textbf{Gap} & \textbf{Our Solution} \\
+\midrule
+Medical FL focuses on structured data (imaging, EHRs) & First federated LLM system for medical QA \\
+\fedavg{} uses naive size-based weighting & Agent-based aggregation with quality metrics \\
+\lora{} applied to FL without quality awareness & Intelligent weighting of \lora{} adapters \\
+Large model FL impractical due to communication costs & 99.90\% bandwidth reduction via \lora{} \\
+Lack of safety guardrails in medical AI & Comprehensive validation and disclaimer system \\
+No validation on resource-constrained hardware & Demonstrated on single T4 GPU (16 GB) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\fedmed{} synthesizes advances in federated learning, parameter-efficient fine-tuning, and medical AI safety into a cohesive, practical system validated on realistic scenarios.

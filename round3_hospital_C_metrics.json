@@ -1,0 +1,11 @@
+{
+  "hospital": "hospital_C",
+  "num_samples": 2959,
+  "initial_loss": 14.305112838745117,
+  "final_loss": 0.20428521931171417,
+  "loss_reduction": 98.57194262209235,
+  "steps": 100,
+  "peak_vram_gb": 5.022890090942383,
+  "lora_params_transmitted": 3407872,
+  "lora_size_mb": 13.0
+}

@@ -1,0 +1,58 @@
+\begin{tikzpicture}[
+    node distance=1.2cm,
+    process/.style={rectangle, draw=blue!60, fill=blue!10, very thick, minimum height=1cm, minimum width=4cm, rounded corners, align=center},
+    decision/.style={diamond, draw=orange!60, fill=orange!10, very thick, minimum height=1cm, minimum width=1cm, aspect=2, align=center},
+    data/.style={cylinder, draw=green!60, fill=green!10, very thick, minimum height=0.8cm, minimum width=2.5cm, shape border rotate=90, align=center},
+    output/.style={rectangle, draw=red!60, fill=red!10, very thick, minimum height=1cm, minimum width=4cm, rounded corners, align=center},
+    arrow/.style={->, >=stealth, very thick},
+    ]
+    
+    % Input
+    \node[data] (input) at (0,0) {Client Metrics\\$\{\mathcal{L}_k^{init}, \mathcal{L}_k^{final}, \sigma_k, n_k\}$};
+    
+    % Process 1: Loss Component
+    \node[process, below=of input] (loss_comp) {Compute Loss Component\\$s_k^{loss} = \exp\left(-\frac{\mathcal{L}_k^{final}}{\mu_{\mathcal{L}}}\right)$};
+    
+    % Process 2: Variance Check
+    \node[decision, below=of loss_comp] (var_check) {$\sigma_k > 5.0$?};
+    
+    % Process 3a: High Variance
+    \node[process, right=2cm of var_check] (high_var) {Heavy Penalty\\$s_k^{var} = 0.5$};
+    
+    % Process 3b: Normal Variance
+    \node[process, below=of var_check] (norm_var) {Compute Variance Score\\$s_k^{var} = \exp(-|\Delta_{imp} - \mu_{imp}|)$};
+    
+    % Merge point
+    \node[process, below=3cm of var_check] (combine) {Combine Components\\$q_k = 0.6 \cdot s_k^{loss} + 0.4 \cdot s_k^{var}$};
+    
+    % Process 4: Blend with Size
+    \node[process, below=of combine] (blend) {Blend with Dataset Size\\$w_k = 0.7 \cdot q_k + 0.3 \cdot p_k$};
+    
+    % Process 5: Minimum Threshold
+    \node[process, below=of blend] (threshold) {Apply Minimum Threshold\\$w_k = \max(w_k, 0.1)$};
+    
+    % Process 6: Normalize
+    \node[output, below=of threshold] (normalize) {Normalize Weights\\$w = w / \sum_k w_k$};
+    
+    % Final Output
+    \node[data, below=of normalize] (output) {Aggregation Weights\\$\sum_k w_k = 1.0$};
+    
+    % Arrows
+    \draw[arrow] (input) -- (loss_comp);
+    \draw[arrow] (loss_comp) -- (var_check);
+    \draw[arrow] (var_check) -- node[above, font=\small] {Yes} (high_var);
+    \draw[arrow] (var_check) -- node[right, font=\small] {No} (norm_var);
+    \draw[arrow] (high_var) |- (combine);
+    \draw[arrow] (norm_var) -- (combine);
+    \draw[arrow] (combine) -- (blend);
+    \draw[arrow] (blend) -- (threshold);
+    \draw[arrow] (threshold) -- (normalize);
+    \draw[arrow] (normalize) -- (output);
+    
+    % Side annotations
+    \node[font=\small, text=blue!70, align=left] at (8, -1.5) {\textbf{Loss Component:}\\Rewards lower\\final loss};
+    \node[font=\small, text=orange!70, align=left] at (8, -3.5) {\textbf{Stability Check:}\\Detects unstable\\training};
+    \node[font=\small, text=green!70, align=left] at (8, -6) {\textbf{Quality Score:}\\60\% loss\\40\% variance};
+    \node[font=\small, text=purple!70, align=left] at (8, -8) {\textbf{Fairness:}\\Considers both\\quality \& size};
+    
+\end{tikzpicture}

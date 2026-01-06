@@ -1,0 +1,494 @@
+\section{Federated Learning Configuration}
+
+\subsection{federated\_config.yaml}
+
+Complete federated learning setup:
+
+\begin{lstlisting}[style=yaml, caption=Federated Learning Configuration, label=lst:fed_config]
+# Federated Learning Configuration
+federated:
+  num_clients: 3
+  client_ids:
+    - hospital_A
+    - hospital_B
+    - hospital_C
+  
+  rounds: 5
+  client_fraction: 1.0  # 100% participation each round
+  
+  local_training:
+    steps_per_round: 100
+    batch_size: 1
+    gradient_accumulation_steps: 8
+    max_grad_norm: 1.0
+  
+  aggregation:
+    method: agent_based  # vs. fedavg, fedprox
+    loss_weight: 0.6
+    variance_weight: 0.4
+    min_client_weight: 0.1
+    variance_threshold: 5.0
+  
+  communication:
+    compression: lora_only
+    quantization: fp16
+    secure_aggregation: false  # Future work
+
+  privacy:
+    differential_privacy: false  # Future work
+    epsilon: 1.0
+    delta: 1e-5
+    clipping_norm: 1.0
+
+  checkpointing:
+    save_every: 1  # Save after each round
+    keep_last_n: 3
+    output_dir: output-models/federated-final
+\end{lstlisting}
+
+\subsection{model\_config.yaml}
+
+Model architecture and LoRA parameters:
+
+\begin{lstlisting}[style=yaml, caption=Model Configuration, label=lst:model_config]
+# Model Configuration
+model:
+  name: mistralai/Mistral-7B-Instruct-v0.2
+  type: causal_lm
+  
+  quantization:
+    enabled: true
+    bits: 4
+    type: nf4  # NormalFloat 4-bit
+    use_double_quant: true
+    compute_dtype: float16
+  
+  lora:
+    enabled: true
+    rank: 8
+    alpha: 16
+    dropout: 0.05
+    target_modules:
+      - q_proj
+      - v_proj
+    bias: none
+    task_type: CAUSAL_LM
+  
+  generation:
+    max_new_tokens: 256
+    temperature: 0.7
+    top_p: 0.9
+    top_k: 50
+    do_sample: true
+    repetition_penalty: 1.1
+
+  memory_optimization:
+    gradient_checkpointing: true
+    use_cache: false  # Incompatible with checkpointing
+    low_cpu_mem_usage: true
+\end{lstlisting}
+
+\subsection{training\_config.yaml}
+
+Optimization and training parameters:
+
+\begin{lstlisting}[style=yaml, caption=Training Configuration, label=lst:training_config]
+# Training Configuration
+training:
+  optimizer:
+    type: adamw
+    learning_rate: 2.0e-4
+    weight_decay: 0.01
+    betas: [0.9, 0.999]
+    eps: 1.0e-8
+  
+  scheduler:
+    type: cosine
+    warmup_ratio: 0.05
+    num_cycles: 0.5
+  
+  data:
+    max_length: 2048
+    padding_side: right
+    truncation: true
+    num_workers: 4
+    prefetch_factor: 2
+  
+  mixed_precision:
+    enabled: true
+    dtype: float16
+    loss_scaling: dynamic
+  
+  logging:
+    steps: 10
+    tensorboard: true
+    wandb: false
+    log_dir: logs
+  
+  checkpointing:
+    save_steps: 50
+    save_total_limit: 3
+    resume_from_checkpoint: null
+  
+  hardware:
+    gpu_id: 3
+    deterministic: true
+    seed: 42
+    benchmark: false  # Set true for production if input size fixed
+\end{lstlisting}
+
+\section{Dataset Configuration}
+
+\subsection{data\_config.yaml}
+
+Data loading and preprocessing:
+
+\begin{lstlisting}[style=yaml, caption=Data Configuration, label=lst:data_config]
+# Data Configuration
+data:
+  source:
+    name: ai-mo/ai-medical-dataset
+    split: train
+    subset: null
+  
+  preprocessing:
+    format: user_assistant
+    clean_text: true
+    remove_duplicates: true
+    min_length: 50
+    max_length: 2048
+  
+  federated_split:
+    method: dirichlet
+    alpha: 0.5  # Controls non-IID degree
+    num_clients: 3
+    seed: 42
+    min_samples_per_client: 1000
+  
+  paths:
+    raw_data: data/raw
+    processed_data: data/processed
+    split_summary: data/processed/split_summary.json
+
+  validation:
+    enabled: true
+    verify_no_overlap: true
+    check_distribution: true
+    save_statistics: true
+\end{lstlisting}
+
+\section{Safety Configuration}
+
+\subsection{safety\_config.yaml}
+
+Medical safety guardrail parameters:
+
+\begin{lstlisting}[style=yaml, caption=Safety Configuration, label=lst:safety_config]
+# Safety Guardrails Configuration
+safety:
+  enabled: true
+  
+  pattern_detection:
+    enabled: true
+    prohibited_patterns:
+      - "you should take"
+      - "I recommend taking"
+      - "you must"
+      - "definitely have"
+      - "definitely don't have"
+      - "guaranteed to cure"
+      - "prescription:"
+    case_sensitive: false
+  
+  overconfidence_detection:
+    enabled: true
+    threshold: 2  # Number of confidence markers
+    markers:
+      - "you have"
+      - "diagnosis is"
+      - "treatment should be"
+      - "certainly"
+      - "absolutely"
+  
+  disclaimer:
+    enabled: true
+    always_append: true
+    text: |
+      **IMPORTANT MEDICAL DISCLAIMER:**
+      This AI assistant provides general health information only 
+      and is NOT a substitute for professional medical advice, 
+      diagnosis, or treatment. Always consult with qualified 
+      healthcare professionals for medical concerns. In case of 
+      emergency, call 911 or your local emergency number.
+  
+  content_filtering:
+    enabled: true
+    block_harmful_queries: true
+    emergency_keywords:
+      - suicide
+      - self-harm
+      - overdose
+    emergency_response: |
+      Your query suggests an emergency. Please contact emergency 
+      services immediately: Call 911 or the National Suicide 
+      Prevention Lifeline at 1-800-273-8255.
+  
+  logging:
+    log_violations: true
+    log_path: logs/safety_violations.log
+    include_context: false  # Privacy: don't log user queries
+\end{lstlisting}
+
+\section{Deployment Configuration}
+
+\subsection{deployment\_config.yaml}
+
+Production deployment settings:
+
+\begin{lstlisting}[style=yaml, caption=Deployment Configuration, label=lst:deployment_config]
+# Deployment Configuration
+deployment:
+  mode: development  # development, staging, production
+  
+  server:
+    host: 0.0.0.0
+    port: 8000
+    workers: 4
+    timeout: 300
+    max_requests: 1000
+    reload: false  # Set true in development
+  
+  model_loading:
+    lazy_loading: false
+    cache_size_gb: 10
+    offload_to_cpu: false
+  
+  inference:
+    batch_size: 1
+    max_concurrent_requests: 10
+    queue_size: 100
+    timeout_seconds: 60
+  
+  monitoring:
+    enabled: true
+    metrics_port: 9090
+    health_check_interval: 60
+    log_level: INFO
+  
+  security:
+    https_only: true
+    api_key_required: true
+    rate_limiting:
+      enabled: true
+      requests_per_minute: 60
+    cors:
+      enabled: true
+      allowed_origins: ["*"]  # Restrict in production
+  
+  compliance:
+    hipaa_mode: true
+    audit_logging: true
+    encryption_at_rest: true
+    encryption_in_transit: true
+    data_retention_days: 90
+\end{lstlisting}
+
+\section{Requirements File}
+\label{app:requirements}
+
+\subsection{requirements.txt}
+
+Complete Python dependencies:
+
+\begin{lstlisting}[language=bash, caption=Python Dependencies, label=lst:requirements]
+# Core ML Libraries
+torch>=2.1.0
+transformers>=4.36.0
+peft>=0.7.0
+accelerate>=0.25.0
+bitsandbytes>=0.41.0
+
+# Data Processing
+datasets>=2.16.0
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Training & Optimization
+tensorboard>=2.15.0
+scipy>=1.11.0
+
+# Configuration
+pyyaml>=6.0.1
+omegaconf>=2.3.0
+
+# Safety & Validation
+regex>=2023.12.0
+
+# Utilities
+tqdm>=4.66.0
+matplotlib>=3.8.0
+seaborn>=0.13.0
+
+# Testing
+pytest>=7.4.0
+pytest-cov>=4.1.0
+
+# Development Tools
+ipykernel>=6.27.0
+jupyter>=1.0.0
+black>=23.12.0
+
+# System Monitoring
+nvidia-ml-py3>=7.352.0
+psutil>=5.9.0
+
+# Optional: Web Interface
+streamlit>=1.29.0
+gradio>=4.13.0
+\end{lstlisting}
+
+\section{Docker Configuration}
+
+\subsection{Dockerfile}
+
+Containerized deployment:
+
+\begin{lstlisting}[language=bash, caption=Docker Configuration, label=lst:dockerfile]
+# Dockerfile for FED-MED Deployment
+FROM nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
+
+# Set environment variables
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
+ENV CUDA_HOME=/usr/local/cuda
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    python3.10 \
+    python3-pip \
+    git \
+    wget \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set working directory
+WORKDIR /app
+
+# Copy requirements
+COPY requirements.txt .
+
+# Install Python dependencies
+RUN pip3 install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY src/ ./src/
+COPY data/ ./data/
+COPY models/ ./models/
+
+# Expose ports
+EXPOSE 8000 9090
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# Run application
+CMD ["python3", "src/server/main.py"]
+\end{lstlisting}
+
+\subsection{docker-compose.yml}
+
+Multi-container orchestration:
+
+\begin{lstlisting}[style=yaml, caption=Docker Compose Configuration, label=lst:docker_compose]
+# docker-compose.yml for FED-MED Federation
+version: '3.8'
+
+services:
+  # Central Server
+  server:
+    build: .
+    container_name: fedmed-server
+    ports:
+      - "8000:8000"
+      - "9090:9090"
+    environment:
+      - ROLE=server
+      - GPU_ID=0
+    volumes:
+      - ./config:/app/config
+      - ./models:/app/models
+      - ./logs:/app/logs
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ['0']
+              capabilities: [gpu]
+  
+  # Hospital A Client
+  hospital_a:
+    build: .
+    container_name: fedmed-hospital-a
+    environment:
+      - ROLE=client
+      - HOSPITAL_ID=hospital_A
+      - SERVER_URL=http://server:8000
+      - GPU_ID=1
+    volumes:
+      - ./data/processed/hospital_A:/app/data
+      - ./config:/app/config
+    depends_on:
+      - server
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ['1']
+              capabilities: [gpu]
+  
+  # Hospital B Client
+  hospital_b:
+    build: .
+    container_name: fedmed-hospital-b
+    environment:
+      - ROLE=client
+      - HOSPITAL_ID=hospital_B
+      - SERVER_URL=http://server:8000
+      - GPU_ID=2
+    volumes:
+      - ./data/processed/hospital_B:/app/data
+      - ./config:/app/config
+    depends_on:
+      - server
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ['2']
+              capabilities: [gpu]
+  
+  # Hospital C Client
+  hospital_c:
+    build: .
+    container_name: fedmed-hospital-c
+    environment:
+      - ROLE=client
+      - HOSPITAL_ID=hospital_C
+      - SERVER_URL=http://server:8000
+      - GPU_ID=3
+    volumes:
+      - ./data/processed/hospital_C:/app/data
+      - ./config:/app/config
+    depends_on:
+      - server
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ['3']
+              capabilities: [gpu]
+\end{lstlisting}

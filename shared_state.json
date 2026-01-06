@@ -1,0 +1,75 @@
+{
+  "federated": {
+    "current_round": 3,
+    "total_rounds": 3,
+    "status": "complete",
+    "global_loss": 0.1419557893909927
+  },
+  "hospitals": {
+    "hospital_A": {
+      "name": "Hospital A",
+      "samples": 4520,
+      "status": "completed",
+      "loss": 0.3217,
+      "last_update": "2026-01-06T10:37:19.735876"
+    },
+    "hospital_B": {
+      "name": "Hospital B",
+      "samples": 2521,
+      "status": "completed",
+      "loss": 0.0416,
+      "last_update": "2026-01-06T10:37:19.736183"
+    },
+    "hospital_C": {
+      "name": "Hospital C",
+      "samples": 2959,
+      "status": "completed",
+      "loss": 0.2043,
+      "last_update": "2026-01-06T10:37:19.736578"
+    }
+  },
+  "agent": {
+    "weights": {
+      "hospital_A": 0.227,
+      "hospital_B": 0.547,
+      "hospital_C": 0.225
+    },
+    "decisions": {
+      "trusted": [
+        "hospital_B"
+      ],
+      "penalized": [],
+      "unstable": [
+        "hospital_C"
+      ]
+    },
+    "last_decision": "2026-01-06T10:37:19.735428",
+    "aggregation_method": "agentic"
+  },
+  "training_history": {
+    "rounds": [
+      1,
+      2,
+      3
+    ],
+    "losses": [
+      0.3789,
+      0.0685,
+      0.1419557893909927
+    ],
+    "timestamps": []
+  },
+  "inference": {
+    "status": "ready",
+    "model_name": "Hospital B (Best Performer)",
+    "queries_processed": 3
+  },
+  "architecture_viz": {
+    "active_flows": [],
+    "highlight_node": null
+  },
+  "metadata": {
+    "last_update": "2026-01-06T11:18:19.759414",
+    "version": "1.0.0"
+  }
+}

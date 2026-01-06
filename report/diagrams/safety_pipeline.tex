@@ -1,0 +1,70 @@
+\begin{tikzpicture}[
+    node distance=1.5cm,
+    stage/.style={rectangle, draw=blue!60, fill=blue!10, very thick, minimum height=1.5cm, minimum width=5cm, rounded corners, align=center, font=\small},
+    check/.style={diamond, draw=orange!60, fill=orange!10, very thick, minimum width=2.5cm, aspect=2, align=center, font=\small},
+    success/.style={rectangle, draw=green!60, fill=green!10, very thick, minimum height=1cm, minimum width=3cm, rounded corners, align=center},
+    fail/.style={rectangle, draw=red!60, fill=red!10, very thick, minimum height=1cm, minimum width=3cm, rounded corners, align=center},
+    arrow/.style={->, >=stealth, very thick},
+    ]
+    
+    % Start
+    \node[stage] (gen) at (0,0) {Generate Response\\(Mistral-7B + LoRA)};
+    
+    % Layer 1: Pattern Detection
+    \node[check, below=of gen] (pattern) {Contains\\Prohibited\\Pattern?};
+    \node[fail, right=2cm of pattern] (reject1) {\textbf{REJECT}\\Reason: Prohibited};
+    
+    % Layer 2: Overconfidence
+    \node[check, below=2.5cm of pattern] (conf) {Excessive\\Certainty?};
+    \node[fail, right=2cm of conf] (reject2) {\textbf{REJECT}\\Reason: Overconfident};
+    
+    % Layer 3: Disclaimer
+    \node[stage, below=2.5cm of conf] (disc) {Add Medical Disclaimer\\(Automatic Injection)};
+    
+    % Success
+    \node[success, below=of disc] (accept) {\textbf{ACCEPT}\\Safe Response};
+    
+    % Arrows - Main Path
+    \draw[arrow] (gen) -- (pattern);
+    \draw[arrow] (pattern) -- node[right, font=\footnotesize] {No} (conf);
+    \draw[arrow] (conf) -- node[right, font=\footnotesize] {No} (disc);
+    \draw[arrow] (disc) -- (accept);
+    
+    % Arrows - Rejection Paths
+    \draw[arrow, red!70] (pattern) -- node[above, font=\footnotesize] {Yes} (reject1);
+    \draw[arrow, red!70] (conf) -- node[above, font=\footnotesize] {Yes} (reject2);
+    
+    % Examples on the side
+    \node[font=\tiny, align=left, draw=gray, fill=gray!5, rounded corners, minimum width=4cm] at (-5, -3) {
+        \textbf{Prohibited Patterns:}\\
+        • "you should take X"\\
+        • "definitely have Y"\\
+        • "I recommend taking Z"\\
+        • "guaranteed to cure"
+    };
+    
+    \node[font=\tiny, align=left, draw=gray, fill=gray!5, rounded corners, minimum width=4cm] at (-5, -6) {
+        \textbf{Overconfidence Signs:}\\
+        • Definitive diagnosis\\
+        • Specific prescriptions\\
+        • Absolute statements\\
+        • Medical certainty
+    };
+    
+    \node[font=\tiny, align=left, draw=gray, fill=gray!5, rounded corners, minimum width=4cm] at (-5, -9) {
+        \textbf{Disclaimer Content:}\\
+        • Not medical advice\\
+        • Consult professionals\\
+        • Educational only\\
+        • HIPAA compliance
+    };
+    
+    % Statistics
+    \node[font=\small, align=center, draw=purple!60, fill=purple!5, very thick, rounded corners, minimum width=4cm, minimum height=1.5cm] at (5, -9) {
+        \textbf{Safety Statistics:}\\
+        Rejection Rate: 2.3\%\\
+        False Positives: <0.1\%\\
+        All Responses: Disclaimed
+    };
+    
+\end{tikzpicture}

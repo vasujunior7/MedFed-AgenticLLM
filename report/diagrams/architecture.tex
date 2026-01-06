@@ -1,0 +1,59 @@
+\begin{tikzpicture}[
+    node distance=1.5cm,
+    hospital/.style={rectangle, draw=blue!60, fill=blue!5, very thick, minimum height=2.5cm, minimum width=2.5cm, rounded corners, align=center},
+    server/.style={rectangle, draw=red!60, fill=red!5, very thick, minimum height=2cm, minimum width=3cm, rounded corners, align=center},
+    agent/.style={rectangle, draw=green!60, fill=green!5, very thick, minimum height=1.5cm, minimum width=3cm, rounded corners, align=center},
+    arrow/.style={->, >=stealth, very thick},
+    data/.style={rectangle, draw=gray!60, fill=gray!5, minimum height=0.8cm, minimum width=2cm, rounded corners, align=center, font=\small},
+    ]
+    
+    % Hospitals (Clients)
+    \node[hospital] (h1) at (0,0) {\textbf{Hospital A}\\4,520 samples\\45.2\% of data};
+    \node[hospital] (h2) at (5,0) {\textbf{Hospital B}\\2,521 samples\\25.2\% of data};
+    \node[hospital] (h3) at (10,0) {\textbf{Hospital C}\\2,959 samples\\29.6\% of data};
+    
+    % Local data
+    \node[data] (d1) at (0,-1.7) {Private\\Patient Data};
+    \node[data] (d2) at (5,-1.7) {Private\\Patient Data};
+    \node[data] (d3) at (10,-1.7) {Private\\Patient Data};
+    
+    % LoRA training
+    \node[rectangle, draw=purple!60, fill=purple!10, thick, minimum width=2cm, font=\scriptsize] (l1) at (0,-3.5) {LoRA Training\\100 steps};
+    \node[rectangle, draw=purple!60, fill=purple!10, thick, minimum width=2cm, font=\scriptsize] (l2) at (5,-3.5) {LoRA Training\\100 steps};
+    \node[rectangle, draw=purple!60, fill=purple!10, thick, minimum width=2cm, font=\scriptsize] (l3) at (10,-3.5) {LoRA Training\\100 steps};
+    
+    % Central Server
+    \node[server] (server) at (5,3.5) {\textbf{Central Server}\\Mistral-7B\\(Frozen)};
+    
+    % Agent Coordinator
+    \node[agent] (agent) at (5,6) {\textbf{Agent Coordinator}\\Quality-Based Weighting};
+    
+    % Arrows - Upload (LoRA params)
+    \draw[arrow, blue!70] (l1) -- node[sloped, above, font=\tiny] {13 MB} node[sloped, below, font=\tiny] {LoRA weights} (2.5,2.5);
+    \draw[arrow, blue!70] (l2) -- node[right, font=\tiny] {13 MB} node[left, font=\tiny] {LoRA weights} (5,2.5);
+    \draw[arrow, blue!70] (l3) -- node[sloped, above, font=\tiny] {13 MB} node[sloped, below, font=\tiny] {LoRA weights} (7.5,2.5);
+    
+    % Arrows - Metrics to Agent
+    \draw[arrow, orange!70, dashed] (l1) to[out=90, in=180] node[sloped, above, font=\tiny] {metrics} (agent);
+    \draw[arrow, orange!70, dashed] (l2) -- node[right, font=\tiny] {metrics} (agent);
+    \draw[arrow, orange!70, dashed] (l3) to[out=90, in=0] node[sloped, above, font=\tiny] {metrics} (agent);
+    
+    % Arrow - Agent to Server
+    \draw[arrow, green!70] (agent) -- node[right, font=\small] {Weights:\\$w_A=0.23$\\$w_B=0.55$\\$w_C=0.23$} (server);
+    
+    % Arrows - Download (Global LoRA)
+    \draw[arrow, red!70, dashed] (server) to[out=180, in=90] node[sloped, above, font=\tiny] {Global LoRA} (h1);
+    \draw[arrow, red!70, dashed] (server) -- node[left, font=\tiny] {Global LoRA} (h2);
+    \draw[arrow, red!70, dashed] (server) to[out=0, in=90] node[sloped, above, font=\tiny] {Global LoRA} (h3);
+    
+    % Privacy shield icons
+    \node[draw=red!60, circle, ultra thick, minimum size=0.6cm] at (-0.8,-1.7) {\tiny 🔒};
+    \node[draw=red!60, circle, ultra thick, minimum size=0.6cm] at (4.2,-1.7) {\tiny 🔒};
+    \node[draw=red!60, circle, ultra thick, minimum size=0.6cm] at (9.2,-1.7) {\tiny 🔒};
+    
+    % Legend
+    \node[font=\scriptsize] at (5,-5.5) {\textbf{Privacy Preserved:} Raw data never leaves hospitals};
+    \node[font=\scriptsize] at (5,-6) {\textbf{Efficiency:} 99.90\% bandwidth reduction (13 MB vs 13 GB)};
+    \node[font=\scriptsize] at (5,-6.5) {\textbf{Intelligence:} Quality-based aggregation, not just data size};
+    
+\end{tikzpicture}
